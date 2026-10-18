@@ -102,7 +102,8 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
 .player.vertical .player-frame{aspect-ratio:9/16}
 .player-frame iframe,.player-frame #yt-slot{position:absolute;inset:0;width:100%;height:100%;border:0}
 /* Iframe twice as tall: the video is letterboxed into the visible middle, while YouTube's pause title and top shade fall into the clipped bars. */
-.player-frame iframe{top:-50%;height:200%}
+/* YT.Player gives the iframe id="yt-slot", so this must beat the #yt-slot rule above. */
+.player-frame iframe#yt-slot,.player-frame iframe{top:-50%!important;bottom:auto!important;height:200%!important}
 /* Shield over the iframe: the mouse never reaches YouTube, so its own hover overlays stay hidden. */
 .shield{position:absolute;inset:0;cursor:pointer;z-index:2}
 .player.idle .shield{cursor:none}
