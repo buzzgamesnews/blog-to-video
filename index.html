@@ -113,7 +113,7 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
 .player.idle .shield{cursor:none}
 /* No shading over the picture: transparent bar, only small solid pills under each control. */
 .ctrl{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:8px;padding:10px 12px;
-  background:none;color:#fff;transition:opacity .35s}
+  background:none;color:#fff;transition:opacity .2s}
 .ctrl button{flex:none;width:34px;height:34px;border:0;border-radius:8px;background:rgba(10,16,22,.62);color:#fff;font:600 15px/1 var(--f-body);cursor:pointer;display:grid;place-items:center}
 .ctrl button:hover{background:rgba(10,16,22,.85)}
 .ctrl .time{font:500 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;flex:none;padding:8px 9px;border-radius:8px;background:rgba(10,16,22,.62)}
@@ -121,7 +121,7 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
 .big-play{position:absolute;left:50%;top:50%;z-index:2;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:rgba(10,16,22,.6);pointer-events:none;transition:opacity .25s;opacity:0}
 .big-play::after{content:"";position:absolute;left:24px;top:18px;border-left:22px solid #fff;border-top:14px solid transparent;border-bottom:14px solid transparent}
 .player.paused .big-play{opacity:1}
-.player-head{transition:opacity .35s}
+.player-head{transition:opacity .2s}
 .player.idle:not(.paused) .ctrl,.player.idle:not(.paused) .player-head{opacity:0;pointer-events:none}
 .player-frame:fullscreen{border-radius:0;aspect-ratio:auto}
 .foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;display:grid;gap:6px;max-width:80ch}
@@ -173,6 +173,7 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
   if(!dlg||typeof dlg.showModal!=='function') return;
 
   // YouTube IFrame API: native controls off, our own minimal bar that hides after 2 s without mouse movement.
+  var IDLE_MS=1000; // controls and title hide after this long without mouse movement
   var apiReady=false, queued=null, player=null, tick=null, idleT=null;
   var s=document.createElement('script'); s.src='https://www.youtube.com/iframe_api'; document.head.appendChild(s);
   window.onYouTubeIframeAPIReady=function(){ apiReady=true; if(queued){ var q=queued; queued=null; open(q.id); } };
@@ -195,7 +196,7 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
   document.addEventListener('fullscreenchange',function(){ setTimeout(fit,50); });
   function wake(){
     dlg.classList.remove('idle'); clearTimeout(idleT);
-    idleT=setTimeout(function(){ dlg.classList.add('idle'); },2000);
+    idleT=setTimeout(function(){ dlg.classList.add('idle'); },IDLE_MS);
   }
   function toggle(){ if(!player) return; var st=player.getPlayerState(); st===1?player.pauseVideo():player.playVideo(); }
   function open(id){
