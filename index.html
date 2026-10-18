@@ -102,8 +102,12 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
 .player.vertical .player-frame{aspect-ratio:9/16}
 .player-frame iframe,.player-frame #yt-slot{position:absolute;inset:0;width:100%;height:100%;border:0}
 /* Iframe twice as tall: the video is letterboxed into the visible middle, while YouTube's pause title and top shade fall into the clipped bars. */
-/* YT.Player gives the iframe id="yt-slot", so this must beat the #yt-slot rule above. */
-.player-frame iframe#yt-slot,.player-frame iframe{top:-50%!important;bottom:auto!important;height:200%!important}
+/* YT.Player gives the iframe id="yt-slot", so these must beat the #yt-slot rule above.
+   The iframe is kept at a small fixed size (YouTube's large-player mode shades the picture on pause)
+   and twice as tall as the video (its pause title lands in the clipped bars); JS scales it to fit. */
+.player-frame iframe#yt-slot,.player-frame iframe{inset:auto!important;top:0!important;left:0!important;
+  width:var(--bw,960px)!important;height:calc(var(--bh,540px) * 2)!important;transform-origin:0 0;
+  transform:scale(var(--s,1)) translateY(-25%)}
 /* Shield over the iframe: the mouse never reaches YouTube, so its own hover overlays stay hidden. */
 .shield{position:absolute;inset:0;cursor:pointer;z-index:2}
 .player.idle .shield{cursor:none}
@@ -182,6 +186,13 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
       '<button type="button" class="mute" aria-label="Вимкнути звук">🔊</button>'+
       '<button type="button" class="fs" aria-label="На весь екран">⛶</button></div>';
   }
+  function fit(){
+    var v=dlg.classList.contains('vertical'), bw=v?405:960, bh=v?720:540;
+    frame.style.setProperty('--bw',bw+'px'); frame.style.setProperty('--bh',bh+'px');
+    frame.style.setProperty('--s',(frame.clientWidth/bw)||1);
+  }
+  window.addEventListener('resize',fit);
+  document.addEventListener('fullscreenchange',function(){ setTimeout(fit,50); });
   function wake(){
     dlg.classList.remove('idle'); clearTimeout(idleT);
     idleT=setTimeout(function(){ dlg.classList.add('idle'); },2000);
@@ -189,7 +200,7 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
   function toggle(){ if(!player) return; var st=player.getPlayerState(); st===1?player.pauseVideo():player.playVideo(); }
   function open(id){
     if(!apiReady){ queued={id:id}; return; }
-    build(); wake();
+    build(); fit(); wake();
     var pp=frame.querySelector('.pp'), seek=frame.querySelector('.seek'), time=frame.querySelector('.time');
     var mute=frame.querySelector('.mute'), fs=frame.querySelector('.fs'), seeking=false;
     player=new YT.Player('yt-slot',{
