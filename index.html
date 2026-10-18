@@ -175,7 +175,7 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
     idleT=setTimeout(function(){ dlg.classList.add('idle'); },IDLE_MS);
   }
   function toggle(){ if(!vid) return; vid.paused?vid.play():vid.pause(); }
-  function open(src){
+  function open(src,poster){
     frame.innerHTML='<video playsinline preload="auto"></video><div class="shield"></div><span class="big-play"></span>'+
       '<div class="ctrl"><button type="button" class="pp" aria-label="Пауза">❚❚</button>'+
       '<span class="time">0:00 / 0:00</span>'+
@@ -207,6 +207,7 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
     seek.addEventListener('change',function(){ if(vid.duration) vid.currentTime=seek.value/1000*vid.duration; seeking=false; });
     mute.addEventListener('click',function(){ vid.muted=!vid.muted; mute.textContent=vid.muted?'🔇':'🔊'; });
     fs.addEventListener('click',function(){ if(document.fullscreenElement) document.exitFullscreen(); else if(frame.requestFullscreen) frame.requestFullscreen(); });
+    if(poster) vid.poster=poster;
     vid.src=src;
     var p=vid.play(); if(p&&p.catch) p.catch(function(){ state(); });
     wake();
@@ -234,7 +235,8 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
       yt.hidden=!a.dataset.yt;
       if(a.dataset.yt) yt.href=a.dataset.yt;
       dlg.showModal();
-      open(a.dataset.src);
+      var img=a.querySelector('img');
+      open(a.dataset.src, img?img.src:'');
     });
   });
   document.getElementById('player-close').addEventListener('click',close);
