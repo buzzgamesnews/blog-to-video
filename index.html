@@ -115,11 +115,6 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
   </header>
 
   <div class="bar">
-    <div class="filters" role="group" aria-label="Фільтр за способом виготовлення">
-      <button class="chip" id="f-all" data-f="all" aria-pressed="true">Усі</button>
-      <button class="chip" id="f-code" data-f="code" aria-pressed="false">Власний код моделі</button>
-      <button class="chip" id="f-lib" data-f="lib" aria-pressed="false">Бібліотеки</button>
-    </div>
     <div class="legend">
       <span><i class="dot code"></i>модель сама малює кожен кадр кодом</span>
       <span><i class="dot lib"></i>модель керує готовою бібліотекою</span>
@@ -168,19 +163,6 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
   document.getElementById('player-close').addEventListener('click',close);
   dlg.addEventListener('click',function(e){ if(e.target===dlg) close(); });
   dlg.addEventListener('close',function(){ frame.innerHTML=''; });
-})();
-</script>
-<script>
-(function(){
-  var chips=[].slice.call(document.querySelectorAll('.chip'));
-  function apply(f){
-    chips.forEach(function(c){c.setAttribute('aria-pressed',String(c.dataset.f===f))});
-    document.querySelectorAll('.card').forEach(function(card){card.hidden=!(f==='all'||card.dataset.kind===f)});
-    try{localStorage.setItem('b2v-filter',f)}catch(e){}
-  }
-  chips.forEach(function(c){c.addEventListener('click',function(){apply(c.dataset.f)})});
-  var saved='all';try{saved=localStorage.getItem('b2v-filter')||'all'}catch(e){}
-  apply(saved);
 })();
 </script>
 
