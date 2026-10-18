@@ -100,7 +100,22 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
 .player-actions a:hover,.player-actions button:hover{background:rgba(255,255,255,.26)}
 .player-frame{position:relative;aspect-ratio:16/9;width:100%;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .player.vertical .player-frame{aspect-ratio:9/16}
-.player-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.player-frame iframe,.player-frame #yt-slot{position:absolute;inset:0;width:100%;height:100%;border:0}
+/* Shield over the iframe: the mouse never reaches YouTube, so its own hover overlays stay hidden. */
+.shield{position:absolute;inset:0;cursor:pointer;z-index:2}
+.player.idle .shield{cursor:none}
+.ctrl{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:12px;padding:28px 14px 12px;
+  background:linear-gradient(transparent,rgba(0,0,0,.72));color:#fff;transition:opacity .35s}
+.ctrl button{flex:none;width:38px;height:38px;border:0;border-radius:8px;background:rgba(255,255,255,.14);color:#fff;font:600 16px/1 var(--f-body);cursor:pointer;display:grid;place-items:center}
+.ctrl button:hover{background:rgba(255,255,255,.28)}
+.ctrl .time{font:500 13px/1 var(--f-mono);font-variant-numeric:tabular-nums;flex:none;opacity:.9}
+.ctrl input[type=range]{flex:1;min-width:0;accent-color:#3DC2B0;height:4px;cursor:pointer}
+.big-play{position:absolute;left:50%;top:50%;z-index:2;width:76px;height:76px;margin:-38px 0 0 -38px;border-radius:50%;background:rgba(10,16,22,.7);pointer-events:none;transition:opacity .25s;opacity:0}
+.big-play::after{content:"";position:absolute;left:30px;top:22px;border-left:26px solid #fff;border-top:16px solid transparent;border-bottom:16px solid transparent}
+.player.paused .big-play{opacity:1}
+.player-head{transition:opacity .35s}
+.player.idle:not(.paused) .ctrl,.player.idle:not(.paused) .player-head{opacity:0;pointer-events:none}
+.player-frame:fullscreen{border-radius:0;aspect-ratio:auto}
 .foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;display:grid;gap:6px;max-width:80ch}
 .foot p{margin:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -148,7 +163,73 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
   var dlg=document.getElementById('player'), frame=document.getElementById('player-frame');
   var title=document.getElementById('player-title'), yt=document.getElementById('player-yt');
   if(!dlg||typeof dlg.showModal!=='function') return;
-  function close(){ frame.innerHTML=''; if(dlg.open) dlg.close(); }
+
+  // YouTube IFrame API: native controls off, our own minimal bar that hides after 2 s without mouse movement.
+  var apiReady=false, queued=null, player=null, tick=null, idleT=null;
+  var s=document.createElement('script'); s.src='https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+  window.onYouTubeIframeAPIReady=function(){ apiReady=true; if(queued){ var q=queued; queued=null; open(q.id); } };
+
+  function fmt(t){ t=Math.max(0,Math.floor(t||0)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); }
+  function build(){
+    frame.innerHTML='<div id="yt-slot"></div><div class="shield"></div><span class="big-play"></span>'+
+      '<div class="ctrl"><button type="button" class="pp" aria-label="Пауза">❚❚</button>'+
+      '<span class="time">0:00 / 0:00</span>'+
+      '<input type="range" class="seek" min="0" max="1000" value="0" aria-label="Перемотування">'+
+      '<button type="button" class="mute" aria-label="Вимкнути звук">🔊</button>'+
+      '<button type="button" class="fs" aria-label="На весь екран">⛶</button></div>';
+  }
+  function wake(){
+    dlg.classList.remove('idle'); clearTimeout(idleT);
+    idleT=setTimeout(function(){ dlg.classList.add('idle'); },2000);
+  }
+  function toggle(){ if(!player) return; var st=player.getPlayerState(); st===1?player.pauseVideo():player.playVideo(); }
+  function open(id){
+    if(!apiReady){ queued={id:id}; return; }
+    build(); wake();
+    var pp=frame.querySelector('.pp'), seek=frame.querySelector('.seek'), time=frame.querySelector('.time');
+    var mute=frame.querySelector('.mute'), fs=frame.querySelector('.fs'), seeking=false;
+    player=new YT.Player('yt-slot',{
+      host:'https://www.youtube-nocookie.com', videoId:id,
+      playerVars:{autoplay:1,controls:0,rel:0,modestbranding:1,iv_load_policy:3,playsinline:1,disablekb:1,fs:0},
+      events:{
+        onReady:function(e){ e.target.playVideo(); },
+        onStateChange:function(e){
+          var playing=e.data===1;
+          dlg.classList.toggle('paused',!playing && e.data!==3 && e.data!==-1);
+          pp.textContent=playing?'❚❚':'▶'; pp.setAttribute('aria-label',playing?'Пауза':'Відтворити');
+          if(!playing) dlg.classList.remove('idle'); else wake();
+        }
+      }
+    });
+    clearInterval(tick);
+    tick=setInterval(function(){
+      if(!player||!player.getDuration) return;
+      var d=player.getDuration()||0, c=player.getCurrentTime()||0;
+      time.textContent=fmt(c)+' / '+fmt(d);
+      if(!seeking&&d) seek.value=Math.round(c/d*1000);
+    },250);
+    frame.querySelector('.shield').addEventListener('click',toggle);
+    pp.addEventListener('click',toggle);
+    seek.addEventListener('input',function(){ seeking=true; });
+    seek.addEventListener('change',function(){ var d=player.getDuration()||0; player.seekTo(seek.value/1000*d,true); seeking=false; });
+    mute.addEventListener('click',function(){ if(player.isMuted()){player.unMute();mute.textContent='🔊';} else {player.mute();mute.textContent='🔇';} });
+    fs.addEventListener('click',function(){ if(document.fullscreenElement) document.exitFullscreen(); else if(frame.requestFullscreen) frame.requestFullscreen(); });
+  }
+  function close(){
+    clearInterval(tick); clearTimeout(idleT);
+    if(player&&player.destroy){ try{player.destroy();}catch(e){} } player=null;
+    frame.innerHTML=''; dlg.classList.remove('idle','paused');
+    if(document.fullscreenElement) document.exitFullscreen();
+    if(dlg.open) dlg.close();
+  }
+  dlg.addEventListener('mousemove',wake);
+  dlg.addEventListener('keydown',function(e){
+    if(!player) return;
+    if(e.key===' '||e.key==='k'){ e.preventDefault(); toggle(); wake(); }
+    else if(e.key==='ArrowRight'){ player.seekTo(player.getCurrentTime()+5,true); wake(); }
+    else if(e.key==='ArrowLeft'){ player.seekTo(Math.max(0,player.getCurrentTime()-5),true); wake(); }
+    else if(e.key==='f'){ frame.querySelector('.fs').click(); }
+  });
   document.querySelectorAll('a.media[data-yt]').forEach(function(a){
     a.addEventListener('click',function(e){
       var id=a.dataset.yt; if(!id) return;
@@ -156,13 +237,13 @@ dt{color:var(--muted)} dd{margin:0;min-width:0}
       dlg.classList.toggle('vertical',a.dataset.vertical==='1');
       title.textContent=a.dataset.title||'';
       yt.href=a.href;
-      frame.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+encodeURIComponent(id)+'?autoplay=1&rel=0&modestbranding=1" title="'+(a.dataset.title||'Відео').replace(/"/g,'&quot;')+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
       dlg.showModal();
+      open(id);
     });
   });
   document.getElementById('player-close').addEventListener('click',close);
   dlg.addEventListener('click',function(e){ if(e.target===dlg) close(); });
-  dlg.addEventListener('close',function(){ frame.innerHTML=''; });
+  dlg.addEventListener('close',close);
 })();
 </script>
 
